@@ -1,0 +1,9 @@
+TARGET = run_seq
+SRC = v_seq.cpp utils.cpp
+CXXFLAGS = -O3 -std=c++11 -lm
+
+all:
+	g++ $(CXXFLAGS) $(SRC) -o $(TARGET)
+
+clean:
+	rm -f $(TARGET)
