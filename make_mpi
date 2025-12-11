@@ -1,0 +1,16 @@
+CXX = mpic++
+CXXFLAGS = -O3 -std=c++11 
+
+all: run_mpi
+
+run_mpi: v_mpi.o utils.o
+	$(CXX) $(CXXFLAGS) v_mpi.o utils.o -o run_mpi
+
+v_mpi.o: v_mpi.cpp utils.h
+	$(CXX) $(CXXFLAGS) -c v_mpi.cpp
+
+utils.o: utils.cpp utils.h
+	$(CXX) $(CXXFLAGS) -c utils.cpp
+
+clean:
+	rm -f *.o run_mpi
