@@ -1,4 +1,4 @@
-# CUDA task at HPC course (sequential code branch)
+# CUDA task at HPC course (parallel code branch)
 
 Overall report -- in report_cuda.pdf
 ### MPI
