@@ -5,6 +5,6 @@ make -f make_seq
 ```
 Run:
 ```
-./run_seq 128 50 0.005
+./run_seq 256 50 0.002
 ```
-Here `128` is the number of grid nodes, `50` is the number of iterations and `0.005` is the time step.
+Here `256` is the number of grid nodes, `50` is the number of iterations and `0.002` is the time step.
