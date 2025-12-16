@@ -6,6 +6,9 @@ extern "C" {
 void launch_init(
     double*& d0,
     double*& u1,
+    double *d_boundary_x0, double *d_boundary_x1,
+    double *d_boundary_y0, double *d_boundary_y1,
+    double *d_boundary_z0, double *d_boundary_z1,
     int Ni, int Nj, int Nk,
     int istart, int jstart, int kstart,
     double hx, double hy, double hz,
@@ -19,6 +22,9 @@ void launch_init(
 #ifdef __CUDACC__
 __global__ void init_kernel(
     double* u0, double* u1,
+    double *d_boundary_x0, double *d_boundary_x1,
+double *d_boundary_y0, double *d_boundary_y1,
+double *d_boundary_z0, double *d_boundary_z1,
     int Ni, int Nj, int Nk,
     int istart, int jstart, int kstart,
     double hx, double hy, double hz,
@@ -28,9 +34,12 @@ __global__ void init_kernel(
 #endif
 
 void launch_update(
-    const double* u0_h,
-    const double* u1_h,
+    double* u0_h,
+    double* u1_h,
     double* u_h,
+    double *d_boundary_x0, double *d_boundary_x1,
+   double *d_boundary_y0, double *d_boundary_y1,
+   double *d_boundary_z0, double *d_boundary_z1,
     int Ni, int Nj, int Nk,
     int istart, int jstart, int kstart,
     double hx, double hy, double hz,
@@ -41,9 +50,12 @@ void launch_update(
 
 #ifdef __CUDACC__
 __global__ void update_kernel(
-    const double *u0,
-    const double *u1,
+    double *u0,
+    double *u1,
     double *u,
+    double *d_boundary_x0, double *d_boundary_x1,
+double *d_boundary_y0, double *d_boundary_y1,
+double *d_boundary_z0, double *d_boundary_z1,
     int Ni, int Nj, int Nk,
     int istart, int jstart, int kstart,
     double hx, double hy, double hz,

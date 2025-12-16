@@ -43,6 +43,9 @@ __device__ double d_laplace_7pt(const double *u1, int i, int j, int k,
 
 __global__ void init_kernel(
     double* u0, double* u1,
+    double *d_boundary_x0, double *d_boundary_x1,
+double *d_boundary_y0, double *d_boundary_y1,
+double *d_boundary_z0, double *d_boundary_z1,
     int Ni, int Nj, int Nk,
     int istart, int jstart, int kstart,
     double hx, double hy, double hz,
@@ -76,26 +79,51 @@ __global__ void init_kernel(
     int idx = (i * Nj + j) * Nk + k;
     u0[idx] = u0v;
     u1[idx] = u1v;
-
+    if (ii == 0){
+        d_boundary_x0[jj * (Nk-2) + kk] = u1v;
+    }
+    if (ii == Ni - 3){
+     d_boundary_x1[jj * (Nk-2) + kk] = u1v;
+    }
+    if (jj == 0){
+    d_boundary_y0[ii * (Nk-2)  + kk] = u1v;
+    }
+    if (jj == Nj - 3){
+    d_boundary_y1[ii * (Nk-2) + kk] = u1v;
+    }
+    if (kk == 0){
+    d_boundary_z0[ii * (Nj-2) + jj] = u1v;
+    }
+    if (kk == Nk - 3){
+    d_boundary_z1[ii * (Nj-2)  + jj] = u1v;
+    }
     int tid = ii + (Ni-2)*(jj + (Nj-2)*kk);
 
     err0[tid] = fabs(d_exact_sol(x, y, z, 0.0) - u0v);
     err1[tid] = fabs(d_exact_sol(x, y, z, tau) - u1v);
 }
 
-
 void launch_init(
     double*& d_u0, double*& d_u1,
+    double* d_boundary_x0, double* d_boundary_x1,
+    double* d_boundary_y0, double* d_boundary_y1,
+    double* d_boundary_z0, double* d_boundary_z1, 
     int Ni, int Nj, int Nk,
     int istart, int jstart, int kstart,
     double hx, double hy, double hz,
     double A_sq_tau, double tau,
     double& local_err0, double& local_err1
 )
-{   
+{
     size_t nBytes = Ni*Nj*Nk*sizeof(double);
     if (d_u0 == nullptr) cudaMalloc(&d_u0, nBytes);
     if (d_u1 == nullptr) cudaMalloc(&d_u1, nBytes);
+    
+    int size_x = Nj * Nk;
+    int size_y = Ni * Nk;
+    int size_z = Ni * Nj;
+    
+     
     dim3 block(8,8,8);
     dim3 grid( (Ni+block.x-3)/block.x,
                (Nj+block.y-3)/block.y,
@@ -108,6 +136,9 @@ void launch_init(
 
     init_kernel<<<grid, block>>>(
         d_u0, d_u1,
+        d_boundary_x0, d_boundary_x1,
+d_boundary_y0, d_boundary_y1,
+d_boundary_z0, d_boundary_z1,
         Ni, Nj, Nk,
         istart, jstart, kstart,
         hx, hy, hz,
@@ -115,6 +146,7 @@ void launch_init(
         thrust::raw_pointer_cast(d_err0.data()),
         thrust::raw_pointer_cast(d_err1.data())
     );
+    
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
         std::cerr << "CUDA kernel launch error: " << cudaGetErrorString(err) << "\n";
@@ -126,16 +158,22 @@ void launch_init(
         std::cerr << "CUDA post-synchronize error: " << cudaGetErrorString(err) << "\n";
         exit(1);
     }
-    
+
+if (err != cudaSuccess) {
+    std::cerr << "CUDA post-synchronize error: " << cudaGetErrorString(err) << "\n";
+    exit(1);
+}
     local_err0 = *thrust::max_element(d_err0.begin(), d_err0.end());
     local_err1 = *thrust::max_element(d_err1.begin(), d_err1.end());
 }
 
-
 __global__ void update_kernel(
-    const double *u0,
-    const double *u1,
+    double *u0,
+    double *u1,
     double *u,
+    double *d_boundary_x0, double *d_boundary_x1,
+double *d_boundary_y0, double *d_boundary_y1,
+double *d_boundary_z0, double *d_boundary_z1,
     int Ni, int Nj, int Nk,
     int istart, int jstart, int kstart,
     double hx, double hy, double hz,
@@ -148,10 +186,15 @@ __global__ void update_kernel(
     int kk = blockIdx.z * blockDim.z + threadIdx.z;
 
     if (ii >= Ni - 2 || jj >= Nj - 2 || kk >= Nk - 2) return;
-
     int i = ii + 1;
     int j = jj + 1;
     int k = kk + 1;
+    if (i == 1) u1[(0 * Nj + j) * Nk + k] = d_boundary_x0[jj * (Nk-2) + kk];
+if (i == Ni-2) u1[((Ni-1) * Nj + j) * Nk + k] = d_boundary_x1[jj * (Nk-2) + kk];
+if (j == 1) u1[(i * Nj + 0) * Nk + k] = d_boundary_y0[ii * (Nk-2) + kk];                                                                 
+if (j == Nj-2) u1[(i * Nj + Nj-1) * Nk + k] = d_boundary_y1[ii * (Nk-2) + kk];
+if (k == 1) u1[(i * Nj + j) * Nk + 0] = d_boundary_z0[ii * (Nj-2) + jj];
+if (k == Nk-2) u1[(i * Nj + j) * Nk + Nk-1] = d_boundary_z1[ii * (Nj-2) + jj];  
 
     int ig = istart + ii;
     int jg = jstart + jj;
@@ -167,16 +210,24 @@ __global__ void update_kernel(
     double val = A_sq_tau * lap + 2.0 * u1[idx] - u0[idx];
 
     u[idx] = val;
-
+    if (ii == 0) d_boundary_x0[jj * (Nk-2) + kk] = val;
+if (ii == Ni - 3) d_boundary_x1[jj * (Nk-2) + kk] = val;
+if (jj == 0) d_boundary_y0[ii * (Nk-2) + kk] = val;
+if (jj == Nj - 3) d_boundary_y1[ii * (Nk-2) + kk] =val;
+if (kk == 0) d_boundary_z0[ii * (Nj-2) + jj] = val;
+if (kk == Nk - 3) d_boundary_z1[ii * (Nj-2) + jj] = val;
     int tid = ii + (Ni-2) * (jj + (Nj-2) * kk);
     err[tid] = fabs(d_exact_sol(x, y, z, tn) - val);
     
 }
 
 void launch_update(
-    const double* d_u0,
-    const double* d_u1,
+    double* d_u0,
+    double* d_u1,
     double* d_u,
+    double *d_boundary_x0, double *d_boundary_x1,
+    double *d_boundary_y0, double *d_boundary_y1,
+    double *d_boundary_z0, double *d_boundary_z1,
     int Ni, int Nj, int Nk,
     int istart, int jstart, int kstart,
     double hx, double hy, double hz,
@@ -192,9 +243,19 @@ void launch_update(
     );
     int nThreads = (Ni-2)*(Nj-2)*(Nk-2);
     thrust::device_vector<double> d_err(nThreads, 0.0);
-
+    int size_x = Nj * Nk;
+    int size_y = Ni * Nk;
+    int size_z = Ni * Nj;
+cudaError_t err = cudaDeviceSynchronize();    
+if (err != cudaSuccess) {
+    std::cerr << "CUDA post-synchronize error: " << cudaGetErrorString(err) << "\n";
+    exit(1);
+}
     update_kernel<<<grid, block>>>(
         d_u0, d_u1, d_u,
+        d_boundary_x0, d_boundary_x1,
+d_boundary_y0, d_boundary_y1,
+d_boundary_z0, d_boundary_z1,
         Ni, Nj, Nk,
         istart, jstart, kstart,
         hx, hy, hz,
@@ -202,11 +263,15 @@ void launch_update(
         thrust::raw_pointer_cast(d_err.data())
     );
 
-    cudaError_t err = cudaDeviceSynchronize();
+    err = cudaDeviceSynchronize();
     if (err != cudaSuccess) {
         std::cerr << "CUDA error: " << cudaGetErrorString(err) << "\n";
         std::abort();
     }
-
-    local_err = *thrust::max_element(d_err.begin(), d_err.begin() + nThreads);
+err = cudaDeviceSynchronize();    
+if (err != cudaSuccess) {
+    std::cerr << "CUDA post-synchronize error: " << cudaGetErrorString(err) << "\n";
+    exit(1);
+} 
+   local_err = *thrust::max_element(d_err.begin(), d_err.begin() + nThreads);
 }

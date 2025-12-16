@@ -1,3 +1,4 @@
+#pragma once
 #include <vector>
 #include <cmath>
 #include <omp.h>
@@ -14,7 +15,7 @@ namespace hpc{
 
 class Tensor3D {
 private:
-    std::vector<double> data;
+    std::vector<double> values;
 public:
     int dim1, dim2, dim3;
     double h_x, h_y, h_z;
@@ -23,6 +24,8 @@ public:
 
     double& operator()(int i, int j, int k);
     const double& operator()(int i, int j, int k) const;
+    double* data();
+    const double* data() const;
 };
 
 double laplace_7point(const Tensor3D& u, int i, int j, int k);

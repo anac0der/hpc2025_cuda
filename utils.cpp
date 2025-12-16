@@ -3,19 +3,26 @@
 namespace hpc{
 
 Tensor3D::Tensor3D(int n, double hx, double hy, double hz)
-    : dim1(n), dim2(n), dim3(n), data(n * n * n, 0.0), h_x(hx), h_y(hy), h_z(hz) {}
+    : dim1(n), dim2(n), dim3(n), values(n * n * n, 0.0), h_x(hx), h_y(hy), h_z(hz) {}
 
 Tensor3D::Tensor3D(int d1, int d2, int d3, double hx, double hy, double hz)
-    : dim1(d1), dim2(d2), dim3(d3), h_x(hx), h_y(hy), h_z(hz), data(d1 * d2 * d3, 0.0) {}
+    : dim1(d1), dim2(d2), dim3(d3), h_x(hx), h_y(hy), h_z(hz), values(d1 * d2 * d3, 0.0) {}
 
 double& Tensor3D::operator()(int i, int j, int k) {
-    return data[(i * dim2 + j) * dim3 + k];
+    return values[(i * dim2 + j) * dim3 + k];
 }
 
 const double& Tensor3D::operator()(int i, int j, int k) const {
-    return data[(i * dim2 + j) * dim3 + k];
+    return values[(i * dim2 + j) * dim3 + k];
 }
 
+double* Tensor3D::data() {
+    return values.data();
+}
+
+const double* Tensor3D::data() const {
+    return values.data();
+}
 
 double laplace_7point(const Tensor3D& u, int i, int j, int k) {
     double d2u_dx2 = u(i - 1, j, k) - 2.0f * u(i, j, k) + u(i + 1, j, k);

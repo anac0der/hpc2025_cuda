@@ -20,8 +20,15 @@ static void compute_blocks(int M, int P, int r, int& start, int& loc)
     }
 }
 
-static void exchange_ghosts(Tensor3D& U, int nx, int ny, int nz,
-                            MPI_Comm comm, const int nbrs[6])
+void exchange_ghosts(
+    double* send_x0, double* send_x1,
+    double* send_y0, double* send_y1,
+    double* send_z0, double* send_z1,
+    double* recv_x0, double* recv_x1,
+    double* recv_y0, double* recv_y1,
+    double* recv_z0, double* recv_z1,
+    int nx, int ny, int nz,
+    MPI_Comm comm, const int nbrs[6])
 {
     MPI_Status st;
 
@@ -35,124 +42,100 @@ static void exchange_ghosts(Tensor3D& U, int nx, int ny, int nz,
     recvbuf.resize(count_x);
 
     if (nbrs[0] != MPI_PROC_NULL) {
-        for (int k = 1; k <= nz; ++k)
-            for (int j = 1; j <= ny; ++j) {
-                int p = (k-1)*ny + (j-1);
-                sendbuf[p] = U(1, j, k);
-            }
+        for (int p = 0; p < count_x; ++p) {
+            sendbuf[p] = send_x0[p];
+        }
 
         MPI_Sendrecv(sendbuf.data(), count_x, MPI_DOUBLE, nbrs[0], 10,
                      recvbuf.data(), count_x, MPI_DOUBLE, nbrs[0], 11,
                      comm, &st);
 
-        for (int k = 1; k <= nz; ++k)
-            for (int j = 1; j <= ny; ++j) {
-                int p = (k-1)*ny + (j-1);
-                U(0, j, k) = recvbuf[p];
-            }
+        for (int p = 0; p < count_x; ++p) {
+            recv_x0[p] = recvbuf[p];
+        }
     }
 
     if (nbrs[1] != MPI_PROC_NULL) {
-        for (int k = 1; k <= nz; ++k)
-            for (int j = 1; j <= ny; ++j) {
-                int p = (k-1)*ny + (j-1);
-                sendbuf[p] = U(nx, j, k);
-            }
+        for (int p = 0; p < count_x; ++p) {
+            sendbuf[p] = send_x1[p];
+        }
 
         MPI_Sendrecv(sendbuf.data(), count_x, MPI_DOUBLE, nbrs[1], 11,
                      recvbuf.data(), count_x, MPI_DOUBLE, nbrs[1], 10,
                      comm, &st);
 
-        for (int k = 1; k <= nz; ++k)
-            for (int j = 1; j <= ny; ++j) {
-                int p = (k-1)*ny + (j-1);
-                U(nx+1, j, k) = recvbuf[p];
-            }
+        for (int p = 0; p < count_x; ++p) {
+            recv_x1[p] = recvbuf[p];
+        }
     }
 
     sendbuf.resize(count_y);
     recvbuf.resize(count_y);
 
     if (nbrs[2] != MPI_PROC_NULL) {
-        for (int k = 1; k <= nz; ++k)
-            for (int i = 1; i <= nx; ++i) {
-                int p = (k-1)*nx + (i-1);
-                sendbuf[p] = U(i, 1, k);
-            }
+        for (int p = 0; p < count_y; ++p) {
+            sendbuf[p] = send_y0[p];
+        }
 
         MPI_Sendrecv(sendbuf.data(), count_y, MPI_DOUBLE, nbrs[2], 20,
                      recvbuf.data(), count_y, MPI_DOUBLE, nbrs[2], 21,
                      comm, &st);
 
-        for (int k = 1; k <= nz; ++k)
-            for (int i = 1; i <= nx; ++i) {
-                int p = (k-1)*nx + (i-1);
-                U(i, 0, k) = recvbuf[p];
-            }
+        for (int p = 0; p < count_y; ++p) {
+            recv_y0[p] = recvbuf[p];
+        }
     }
 
     if (nbrs[3] != MPI_PROC_NULL) {
-        for (int k = 1; k <= nz; ++k)
-            for (int i = 1; i <= nx; ++i) {
-                int p = (k-1)*nx + (i-1);
-                sendbuf[p] = U(i, ny, k);
-            }
+        for (int p = 0; p < count_y; ++p) {
+            sendbuf[p] = send_y1[p];
+        }
 
         MPI_Sendrecv(sendbuf.data(), count_y, MPI_DOUBLE, nbrs[3], 21,
                      recvbuf.data(), count_y, MPI_DOUBLE, nbrs[3], 20,
                      comm, &st);
 
-        for (int k = 1; k <= nz; ++k)
-            for (int i = 1; i <= nx; ++i) {
-                int p = (k-1)*nx + (i-1);
-                U(i, ny+1, k) = recvbuf[p];
-            }
+        for (int p = 0; p < count_y; ++p) {
+            recv_y1[p] = recvbuf[p];
+        }
     }
 
     sendbuf.resize(count_z);
     recvbuf.resize(count_z);
 
     if (nbrs[4] != MPI_PROC_NULL) {
-        for (int j = 1; j <= ny; ++j)
-            for (int i = 1; i <= nx; ++i) {
-                int p = (j-1)*nx + (i-1);
-                sendbuf[p] = U(i, j, 1);
-            }
+        for (int p = 0; p < count_z; ++p) {
+            sendbuf[p] = send_z0[p];
+        }
 
         MPI_Sendrecv(sendbuf.data(), count_z, MPI_DOUBLE, nbrs[4], 30,
                      recvbuf.data(), count_z, MPI_DOUBLE, nbrs[4], 31,
                      comm, &st);
 
-        for (int j = 1; j <= ny; ++j)
-            for (int i = 1; i <= nx; ++i) {
-                int p = (j-1)*nx + (i-1);
-                U(i, j, 0) = recvbuf[p];
-            }
+        for (int p = 0; p < count_z; ++p) {
+            recv_z0[p] = recvbuf[p];
+        }
     }
 
     if (nbrs[5] != MPI_PROC_NULL) {
-        for (int j = 1; j <= ny; ++j)
-            for (int i = 1; i <= nx; ++i) {
-                int p = (j-1)*nx + (i-1);
-                sendbuf[p] = U(i, j, nz);
-            }
+        for (int p = 0; p < count_z; ++p) {
+            sendbuf[p] = send_z1[p];
+        }
 
         MPI_Sendrecv(sendbuf.data(), count_z, MPI_DOUBLE, nbrs[5], 31,
                      recvbuf.data(), count_z, MPI_DOUBLE, nbrs[5], 30,
                      comm, &st);
 
-        for (int j = 1; j <= ny; ++j)
-            for (int i = 1; i <= nx; ++i) {
-                int p = (j-1)*nx + (i-1);
-                U(i, j, nz+1) = recvbuf[p];
-            }
+        for (int p = 0; p < count_z; ++p) {
+            recv_z1[p] = recvbuf[p];
+        }
     }
 }
 
 int main(int argc, char** argv)
 {
     MPI_Init(&argc, &argv);
-
+    double t_start_init = MPI_Wtime();
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -201,23 +184,58 @@ int main(int argc, char** argv)
     Tensor3D u0(i_n+2, j_n+2, k_n+2, hx, hy, hz);
     Tensor3D u1(i_n+2, j_n+2, k_n+2, hx, hy, hz);
     Tensor3D u(i_n+2, j_n+2, k_n+2, hx, hy, hz);
+    std::vector<double> send_x0(j_n * k_n);  
+    std::vector<double> send_x1(j_n * k_n);  
+    std::vector<double> send_y0(i_n * k_n);  
+    std::vector<double> send_y1(i_n * k_n);  
+    std::vector<double> send_z0(i_n * j_n);  
+    std::vector<double> send_z1(i_n * j_n);  
+  
+    std::vector<double> recv_x0(j_n * k_n);  
+    std::vector<double> recv_x1(j_n * k_n);  
+    std::vector<double> recv_y0(i_n * k_n);  
+    std::vector<double> recv_y1(i_n * k_n);  
+    std::vector<double> recv_z0(i_n * j_n);  
+    std::vector<double> recv_z1(i_n * j_n);  
+    
+    double* d_boundary_x0;
+    double* d_boundary_x1;
+    double* d_boundary_y0;
+    double* d_boundary_y1;
+    double* d_boundary_z0;
+    double* d_boundary_z1;
 
+    int size_x = j_n * k_n;  
+    int size_y = i_n * k_n;    
+    int size_z = i_n * j_n;  
+ 
+    cudaMalloc(&d_boundary_x0, size_x * sizeof(double));
+    cudaMalloc(&d_boundary_x1, size_x * sizeof(double));
+    cudaMalloc(&d_boundary_y0, size_y * sizeof(double));
+    cudaMalloc(&d_boundary_y1, size_y * sizeof(double));
+    cudaMalloc(&d_boundary_z0, size_z * sizeof(double));
+    cudaMalloc(&d_boundary_z1, size_z * sizeof(double));
     double local_err0=0, local_err1=0;
 
     MPI_Barrier(MPI_COMM_WORLD);
-    double t_start = MPI_Wtime();
+    double t_start_01 = MPI_Wtime();
     double* d_u0 = nullptr;
     double* d_u1 = nullptr;
-    launch_init(d_u0, d_u1, i_n+2, j_n+2, k_n+2,
+
+    launch_init(d_u0, d_u1, 
+                d_boundary_x0, d_boundary_x1, 
+                d_boundary_y0, d_boundary_y1,
+                d_boundary_z0, d_boundary_z1,
+                i_n+2, j_n+2, k_n+2,
                 istart, jstart, kstart,
                 hx, hy, hz,
                 A_sq_tau, tau,
                 local_err0, local_err1);
-    
+    double t_end_01 = MPI_Wtime();
     double err0, err1;
     MPI_Reduce(&local_err0, &err0, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
     MPI_Reduce(&local_err1, &err1, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-
+    
     if (rank == 0) {
         std::cout<<"Step 0, error = "<<err0<<"\n";
         std::cout<<"Step 1, error = "<<err1<<"\n";
@@ -226,21 +244,46 @@ int main(int argc, char** argv)
     double *d_u = nullptr;
     size_t arr_size = (i_n+2)*(j_n+2)*(k_n+2);
     cudaMalloc(&d_u, arr_size*sizeof(double));
+    double t_cpy_start, t_cpy_end, t_cpy_2_start, t_cpy_2_end, t_main_start, t_main_end;
     for (int n = 2; n <= K; n++)
     {
         double tn = n * tau;
-	cudaMemcpy(u0.data(), d_u0, (i_n+2)*(j_n+2)*(k_n+2)*sizeof(double), cudaMemcpyDeviceToHost);
-        cudaMemcpy(u1.data(), d_u1, (i_n+2)*(j_n+2)*(k_n+2)*sizeof(double), cudaMemcpyDeviceToHost);
-        exchange_ghosts(u1, i_n, j_n, k_n, comm, nbrs);
-        exchange_ghosts(u0, i_n, j_n, k_n, comm, nbrs);
-        cudaMemcpy(d_u0, u0.data(), (i_n+2)*(j_n+2)*(k_n+2)*sizeof(double), cudaMemcpyHostToDevice);
-        cudaMemcpy(d_u1, u1.data(), (i_n+2)*(j_n+2)*(k_n+2)*sizeof(double), cudaMemcpyHostToDevice);
+   	t_cpy_start = MPI_Wtime();
+         
+        cudaMemcpy(send_x0.data(), d_boundary_x0, size_x*sizeof(double), cudaMemcpyDeviceToHost);
+        cudaMemcpy(send_x1.data(), d_boundary_x1, size_x*sizeof(double), cudaMemcpyDeviceToHost);
+        cudaMemcpy(send_y0.data(), d_boundary_y0, size_y*sizeof(double), cudaMemcpyDeviceToHost);
+        cudaMemcpy(send_y1.data(), d_boundary_y1, size_y*sizeof(double), cudaMemcpyDeviceToHost);
+        cudaMemcpy(send_z0.data(), d_boundary_z0, size_z*sizeof(double), cudaMemcpyDeviceToHost);
+        cudaMemcpy(send_z1.data(), d_boundary_z1, size_z*sizeof(double), cudaMemcpyDeviceToHost);
+        t_cpy_end = MPI_Wtime();
+        
+        exchange_ghosts(send_x0.data(), send_x1.data(),
+                        send_y0.data(), send_y1.data(),
+                        send_z0.data(), send_z1.data(),
+                        recv_x0.data(), recv_x1.data(),
+                        recv_y0.data(), recv_y1.data(),
+                        recv_z0.data(), recv_z1.data(),
+                        i_n, j_n, k_n, comm, nbrs);
+        
+        t_cpy_2_start = MPI_Wtime();
+        cudaMemcpy(d_boundary_x0, recv_x0.data(), size_x*sizeof(double), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_boundary_x1, recv_x1.data(), size_x*sizeof(double), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_boundary_y0, recv_y0.data(), size_y*sizeof(double), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_boundary_y1, recv_y1.data(), size_y*sizeof(double), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_boundary_z0, recv_z0.data(), size_z*sizeof(double), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_boundary_z1, recv_z1.data(), size_z*sizeof(double), cudaMemcpyHostToDevice);
+        
+        t_cpy_2_end = MPI_Wtime();
         double local_err = 0.0;
-
+        t_main_start = MPI_Wtime();
         launch_update(
             d_u0,
             d_u1,
             d_u,
+            d_boundary_x0, d_boundary_x1,
+            d_boundary_y0, d_boundary_y1,
+            d_boundary_z0, d_boundary_z1,
             i_n+2, j_n+2, k_n+2,
             istart, jstart, kstart,
             hx, hy, hz,
@@ -249,7 +292,7 @@ int main(int argc, char** argv)
             local_err
         );
         
-
+        t_main_end = MPI_Wtime();
         double err;
         MPI_Reduce(&local_err, &err, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
         if (rank == 0) std::cout << "Step " << n << ", error = " << err << "\n";
@@ -260,17 +303,63 @@ int main(int argc, char** argv)
 
     MPI_Barrier(MPI_COMM_WORLD);
     double t_end = MPI_Wtime();
-    double elapsed = t_end - t_start;
+    double elapsed = t_end - t_start_init;
+    double init = t_start_01 - t_start_init;
+    double first_cycle = t_end_01 - t_start_01;
+    double device2host = (t_cpy_end - t_cpy_start) * (K - 2);
+    double host2device = (t_cpy_2_end - t_cpy_2_start) * (K - 2);
+    double exchange = (t_cpy_2_start - t_cpy_end) * (K - 2);
+    double main_c = (t_main_end - t_main_start) * (K - 2);
+    
 
-    double max_elapsed;
+    double max_elapsed, max_init, max_first_cycle;
+    double total_device2host, total_host2device, total_exchange, total_main_c;
+    double max_device2host, max_host2device, max_exchange, max_main_c;
+
+// Reduce elapsed time (max across all processes)
     MPI_Reduce(&elapsed, &max_elapsed, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-
+//
+// // Reduce initialization time (max across all processes)
+    MPI_Reduce(&init, &max_init, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+//
+// // Reduce first cycle time (max across all processes)
+    MPI_Reduce(&first_cycle, &max_first_cycle, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+//
+// // Reduce device-to-host copy time (sum across all processes)
+   MPI_Reduce(&device2host, &total_device2host, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+//
+// // Reduce host-to-device copy time (sum across all processes)
+   MPI_Reduce(&host2device, &total_host2device, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+//
+// // Reduce exchange time (sum across all processes)
+   MPI_Reduce(&exchange, &total_exchange, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+//
+// // Reduce main computation time (sum across all processes)
+   MPI_Reduce(&main_c, &total_main_c, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+//
+// // Also get max values for the timing components
+   MPI_Reduce(&device2host, &max_device2host, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+   MPI_Reduce(&host2device, &max_host2device, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+   MPI_Reduce(&exchange, &max_exchange, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+   MPI_Reduce(&main_c, &max_main_c, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
     if (rank == 0) {
-        std::cout << "Elapsed time: " << max_elapsed << " seconds\n";
+           std::cout << "Elapsed time: " << max_elapsed << " seconds\n";
+    std::cout << "Initialization time: " << max_init << " seconds\n";
+    std::cout << "First cycle time: " << max_first_cycle << " seconds\n";
+    std::cout << "Device to Host copy time: " << max_device2host << " seconds\n";
+    std::cout << "Host to Device copy time: " << max_host2device << " seconds\n";
+    std::cout << "Exchange time: " << max_exchange << " seconds\n";
+    std::cout << "Main computation time: " << max_main_c << " seconds\n";
     }
     cudaFree(d_u0);
     cudaFree(d_u1);
     cudaFree(d_u);
+    cudaFree(d_boundary_x0);
+    cudaFree(d_boundary_x1);
+    cudaFree(d_boundary_y0);
+    cudaFree(d_boundary_y1);
+    cudaFree(d_boundary_z0);
+    cudaFree(d_boundary_z1);
     MPI_Finalize();
     return 0;
 }
